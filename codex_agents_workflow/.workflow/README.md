@@ -17,8 +17,8 @@ python3 .workflow/scripts/workflow.py init --task TASK-0001
   "required_acceptance_ids": ["AC-001", "AC-002"],
   "checks": [
     {
-      "id": "unit",
-      "argv": ["python3", "-m", "unittest", "discover", "-s", "tests", "-v"],
+      "id": "functional",
+      "argv": ["python3", "-m", "unittest", "discover", "-s", "tests", "-p", "test_parser.py", "-v"],
       "cwd": ".",
       "timeout_seconds": 120
     }
@@ -33,7 +33,9 @@ python3 .workflow/scripts/workflow.py init --task TASK-0001
 
 这是**局部示例**，合并时保留 `requirement`、`documentation` 的允许路径及其余 manifest 字段。原模板带有 ROS2/C++ 路径示例，需按目标项目缩小或替换。报告文件也要在所属角色允许路径中。允许模式采用 Python `fnmatch`，其中 `*` 可能跨目录；优先列精确文件，避免把宽泛模式当成目录隔离。
 
-`checks` 必须非空；用实际项目的构建、单元/集成测试替换示例。一个返回 0 的命令不等于足够覆盖，Testing 与 Review 必须核实每项验收真正被测试。`argv` 不隐式经过 shell；`cwd` 必须是仓库内目录，超时值为正数，默认 60 秒。执行环境继承当前进程，依赖安装和环境设置由项目负责。命令先由主线程审阅并确认在已有授权范围内；脚本无法判断任意命令是否会部署或驱动硬件。
+`checks` 必须非空；配置该功能及受影响已有功能的必要测试、适用的性能检查与项目必需构建命令。示例仅选择已有 `test_parser.py`，不要求新建文件或无差别执行全仓测试；共用组件变更则选择相应的已有回归用例。单元/集成是可复用的验证方式，不要求为同一行为各建一套脚本。一个返回 0 的命令不等于足够覆盖，Testing 与 Review 必须核实每项验收真正被测试。`argv` 不隐式经过 shell；`cwd` 必须是仓库内目录，超时值为正数，默认 60 秒。执行环境继承当前进程，依赖安装和环境设置由项目负责。命令先由主线程审阅并确认在已有授权范围内；脚本无法判断任意命令是否会部署或驱动硬件。
+
+性能验收在需求中记录指标、负载、环境、测量方法和阈值，并复用现有基准入口；检查命令应在超过阈值时返回非零，实测值记录在日志、验收映射引用同一 check_id。没有适用的性能要求时说明原因，不强制生成 benchmark。功能测试优先参数化、合并重复场景；不为每个任务新建测试目录、框架或 test_plan.md。
 
 进入阶段后不要修改权限、检查命令或必需验收列表以绕过门禁；策略变化会被检测。需要改变范围时使用新任务，保留原因与旧任务关联。
 
@@ -59,12 +61,12 @@ python3 .workflow/scripts/workflow.py advance --task TASK-0001 --to IMPLEMENTING
 
 冻结拒绝空白批准引用、空文件、常见模板占位符和已有锁；锁对三份契约原始字节计算 SHA-256。保存真实批准证据及锁供评审，脚本本身不认证批准者。`CONTRACT_REVIEW` 阶段只允许新增锁，不能顺手改契约或任务策略。
 
-**3. 实现与测试。** Coding 完成允许范围内的业务代码及实现报告；随后 Testing 独立编写测试，运行配置的检查并填写验收映射。
+**3. 实现与测试。** Coding 完成允许范围内的业务代码及实现报告；随后 Testing 独立核查验收，复用或补充必要的功能/性能测试，运行配置的检查并填写验收映射。已有测试足够时无需修改测试文件。
 
 ```bash
 # coding 完成 implementation_report.json
 python3 .workflow/scripts/workflow.py advance --task TASK-0001 --to TESTING
-# testing 完成测试文件
+# testing 确认已有测试足够，或补齐必要用例
 python3 .workflow/scripts/workflow.py run-checks --task TASK-0001
 # testing 根据真实结果完成 test_report.json
 python3 .workflow/scripts/workflow.py advance --task TASK-0001 --to VERIFYING
@@ -108,8 +110,8 @@ python3 .workflow/scripts/workflow.py advance --task TASK-0001 --to READY_FOR_MR
   "status": "passed",
   "contract_version": "0.1",
   "checks": [
-    {"acceptance_id": "AC-001", "check_id": "unit", "result": "PASS"},
-    {"acceptance_id": "AC-002", "check_id": "unit", "result": "PASS"}
+    {"acceptance_id": "AC-001", "check_id": "functional", "result": "PASS"},
+    {"acceptance_id": "AC-002", "check_id": "functional", "result": "PASS"}
   ],
   "hardware_tests": "NOT_RUN_HARDWARE",
   "known_limitations": []
@@ -119,6 +121,8 @@ python3 .workflow/scripts/workflow.py advance --task TASK-0001 --to READY_FOR_MR
 源码、命令配置或受检查文件变化会使证据失效；日志缺失或内容变化也会失败。命令执行期间改动输入不能记为成功；新一轮执行先将证据标为 `running`，中断后必须重跑。超时会终止该检查的进程组。对强制终止的运行，恢复前确认没有遗留检查进程。
 
 `status` 只读展示阶段和未满足条件，即使显示 NOT READY 也可能退出 0；自动化应使用 `check` 的非零退出码，而非解析 `status`。
+
+报告引用已有用例与日志，不复制源码或生成逐用例报告。大体积日志、性能原始数据放在可追溯的 CI artifacts 等证据存储中，按项目保留期管理；活动任务和当前 MR 所需的本地日志、锁、快照及报告在门禁/CI完成前必须保留，不为瘦身清掉检查依赖。
 
 ## 范围、返工与恢复
 

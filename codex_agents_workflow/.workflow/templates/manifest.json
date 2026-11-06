@@ -21,7 +21,6 @@
     "testing": [
       "test/**",
       "tests/**",
-      ".workflow/tasks/TASK-0001/test_plan.md",
       ".workflow/tasks/TASK-0001/test_report.json"
     ],
     "review": [],

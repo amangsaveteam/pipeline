@@ -19,7 +19,7 @@
 1. `INTAKE` -> `CONTRACT_DRAFT`: requirement writes requirements.md, interface.yaml, acceptance.yaml, open_questions.md.
 2. `CONTRACT_REVIEW`: human or designated owner approves public contracts. Only then run freeze_contract.py and commit/record the locked contract.
 3. `IMPLEMENTING`: coding writes approved business files only; no changing tests or contracts.
-4. `TESTING`: testing independently writes tests and records factual results; fix test defects in testing, product defects in coding.
+4. `TESTING`: testing independently validates feature functionality and applicable performance criteria, reusing existing tests before adding cases; fix test defects in testing, product defects in coding.
 5. `VERIFYING`: actual project-required build and tests, scope check, contract hash check must pass. Configure commands in the manifest and record them through `workflow.py run-checks`; missing prerequisites remain failures or blockers.
 6. `REVIEWING`: review is read-only, evidence-based, and returns findings. Maximum two automatic repair loops; then escalate to human.
 7. `DOCUMENTING`: documentation writes docs after review approval.
@@ -38,6 +38,15 @@
 - Record concise results and references, not all terminal output. Do not assume earlier chat memory is repository truth.
 - For tiny typo-only tasks, the Orchestrator may classify the task as lightweight and complete a scoped edit with an appropriate check. Do not require five-agent overhead or a new public-contract approval for a change with no public-contract impact.
 - Maintenance of this workflow template itself is internal tooling work when requested by the user. Record the scope and validation, but do not create fictional public-interface approvals to bootstrap its own scripts.
+
+## Lean feature testing
+- Retain tests tied to a feature's functional acceptance or measurable performance requirements. Boundary/error/compatibility cases belong in that feature's functional tests only when relevant; do not generate a fixed checklist of suites for every task.
+- Reuse the project's test runner, fixtures and feature/module test files. A new task or AC does not require a new script. Prefer parameterized cases over copied scripts; split files only for a clear responsibility or maintainability reason.
+- Performance acceptance specifies metric, workload, environment, measurement method and threshold before implementation. Extend an existing benchmark where possible. If performance is not applicable, record the reason in requirements; do not invent a benchmark or claim performance passed.
+- Add regression assertions to existing feature tests when they prevent a concrete recurrence. Do not retain implementation-mirroring tests, duplicated acceptance checks, temporary debugging scripts or an extra test framework without a demonstrated need. Preserve necessary distinct assertions when consolidating tests.
+- No new tests for documentation, prompt or other low-impact changes without behavior impact. Use a relevant existing check. Do not set test-count or coverage-percentage quotas, or require one file per function/task.
+- Use the task's existing acceptance material and test_report.json for planning/results; no separate test_plan.md or per-case reports by default. Keep raw benchmark data and large logs outside source control, with retrievable evidence references; do not remove artifacts required by active gates or CI.
+- `.workflow/tests/` tests this workflow tool itself. Keep it in the template's maintenance repository; do not copy it into consuming projects by default or add it to every feature's checks.
 
 ## Native-vs-enforced boundaries
 - Custom role instructions do NOT establish a separate read-only sandbox; subagents inherit root approval/sandbox settings.

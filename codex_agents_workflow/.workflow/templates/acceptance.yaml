@@ -3,4 +3,4 @@ acceptance:
   - id: AC-001
     requirement: REQ-001
     condition: "待填写"
-    evidence: "unit/integration/hardware test (specify)"
+    evidence: "待填写：现有或新增的功能/性能测试入口与断言；可复用同一测试覆盖多个 AC"
