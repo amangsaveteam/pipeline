@@ -1,0 +1,29 @@
+version: "1.0"
+acceptance:
+  - id: AC-001
+    requirement: REQ-001
+    condition: "临时 Git 仓库 init 成功，task_id、base_commit、任务文件匹配；重复和 ../ 路径 ID 失败且不覆盖。"
+  - id: AC-002
+    requirement: REQ-002
+    condition: "从初始阶段完整走到 READY_FOR_MR；缺文件、错误报告或非法跳转失败，失败时不误推进阶段。"
+  - id: AC-003
+    requirement: REQ-003
+    condition: "缺批准引用/空引用、未填模板、重复冻结均失败；冻结后改任一契约，验证和后续门禁均失败。"
+  - id: AC-004
+    requirement: REQ-004
+    condition: "快照模式允许保持原有脏文件；新越权新增/修改/删除/重命名源或目标/符号链接变化均检测失败，review 的只读范围为空。"
+  - id: AC-005
+    requirement: REQ-005
+    condition: "真实成功命令留下退出码 0 与日志；失败、无命令、超时、空列表、命令配置或受测内容变更后的旧证据不能放行。"
+  - id: AC-006
+    requirement: REQ-006
+    condition: "缺必需 AC、NOT_RUN 必需测试、review changes_requested、未完成文档报告分别阻止对应阶段推进。"
+  - id: AC-007
+    requirement: REQ-007
+    condition: "返工计数递增且旧下游成功报告/检查证据失效；第三次自动返工被阻止；block/resume 不跳阶段也不重置计数。"
+  - id: AC-008
+    requirement: REQ-008
+    condition: "最终摘要含真实验证和限制；整个流程无 push/MR/merge/deploy 副作用。"
+  - id: AC-009
+    requirement: REQ-009
+    condition: "标准库测试命令返回 0；中文示例与 --help 匹配；CI 缺指定任务/锁时失败而非跳过。"

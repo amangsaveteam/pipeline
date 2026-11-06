@@ -1,0 +1,15 @@
+{
+  "decision": "approved",
+  "scope": "README files, orchestration rules, prompts, CLI examples, and GitLab CI example",
+  "findings": [],
+  "validation": [
+    "Documented commands, arguments, stages, report fields, and recovery behavior match the implementation.",
+    "Installation guidance correctly distinguishes the nested template from the target Git repository root.",
+    "CI explicitly requires WORKFLOW_TASK_ID, reruns checks, then applies the final gate.",
+    "The test stage, custom-stage adaptation, required dependencies, and authorization boundaries are documented."
+  ],
+  "uncertainties": [
+    "The GitLab CI example has not been executed on a remote runner.",
+    "This review checked documentation consistency without repeating the test suite."
+  ]
+}

@@ -1,0 +1,12 @@
+version: "0.1"
+status: DRAFT
+interfaces:
+  - id: API-001
+    kind: ROS2_TOPIC # ROS2_SERVICE / ROS2_ACTION / CPP_API / REST
+    name: "/replace_me"
+    type: "replace_pkg/msg/ReplaceMe"
+    direction: publish
+    qos: {reliability: best_effort, durability: volatile, history: keep_last, depth: 10}
+    fields: [] # each field must specify type/unit/frame where applicable
+    errors: []
+    compatibility: "待填写"

@@ -1,0 +1,25 @@
+{
+  "decision": "approved",
+  "scope": "workflow scripts and regression tests",
+  "findings": [],
+  "resolved_findings": [
+    "Deletion fingerprints remain stable after staging or committing.",
+    "Failed snapshot generation preserves the original stage.",
+    "Interrupted check reruns cannot reuse previous success."
+  ],
+  "validation": {
+    "evidence": "codex_agents_workflow/.workflow/tasks/WORKFLOW-UPGRADE/test_report.json",
+    "verified_by": "independent Testing Agent rerun after Coding fixes",
+    "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s codex_agents_workflow/.workflow/tests -v",
+    "tests_run": 27,
+    "passed": 27,
+    "failed": 0,
+    "exit_code": 0,
+    "duration_seconds": 15.64,
+    "verified_at_utc": "2026-11-06T02:43:55.994996+00:00"
+  },
+  "uncertainties": [
+    "Documentation and GitLab CI examples await the planned consistency review.",
+    "Local tests do not certify remote CI execution, approval identity authentication, hardware operation, or deployment."
+  ]
+}

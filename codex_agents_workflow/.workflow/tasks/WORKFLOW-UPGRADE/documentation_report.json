@@ -1,0 +1,35 @@
+{
+  "task_id": "WORKFLOW-UPGRADE",
+  "status": "completed",
+  "changed_files": [
+    "README.md",
+    "codex_agents_workflow/README.md",
+    "codex_agents_workflow/.workflow/README.md",
+    "codex_agents_workflow/.workflow/ORCHESTRATION.md",
+    "codex_agents_workflow/.workflow/PROMPTS.md",
+    "codex_agents_workflow/.workflow/gitlab-ci.example.yml"
+  ],
+  "referenced_evidence": [
+    ".workflow/scripts/workflow.py and workflow_core.py actual CLI/gates",
+    ".workflow/tasks/WORKFLOW-UPGRADE/test_report.json: independent 27/27 passed, exit 0",
+    "https://learn.chatgpt.com/docs/agent-configuration/subagents",
+    "https://learn.chatgpt.com/docs/agent-configuration/agents-md",
+    "https://docs.gitlab.com/ci/yaml/#stages",
+    "https://raw.githubusercontent.com/docker-library/official-images/master/library/python (parent verification)"
+  ],
+  "validation": [
+    {
+      "check": "All local Markdown links and JSON examples parsed; all 8 CLI subcommand help invocations",
+      "exit_code": 0
+    },
+    {
+      "check": "CI YAML parsed and embedded shell syntax checked locally",
+      "exit_code": 0
+    }
+  ],
+  "known_limitations": [
+    "No remote GitLab pipeline, authenticated Codex role startup, real application tests, hardware actions, push, merge or deployment were performed.",
+    "The template must be merged into a target Git root and a new trusted Codex session; maintenance task records must not be copied as approved business tasks.",
+    "Final integration checks are owned by the Orchestrator."
+  ]
+}

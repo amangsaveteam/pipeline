@@ -1,0 +1,41 @@
+{
+  "task_id": "WORKFLOW-UPGRADE",
+  "stage": "MAINTENANCE_COMPLETE",
+  "scope": "Improve the workflow starter itself; no business application/public robot interface changes.",
+  "authorization": "User requested completion of existing Codex agent workflow. Internal reversible tooling and documentation changes are in scope; no deployment/push/merge.",
+  "contract_status": "not_applicable_internal_tooling",
+  "permissions": {
+    "requirement": [
+      "codex_agents_workflow/.workflow/tasks/WORKFLOW-UPGRADE/requirements.md",
+      "codex_agents_workflow/.workflow/tasks/WORKFLOW-UPGRADE/interface.yaml",
+      "codex_agents_workflow/.workflow/tasks/WORKFLOW-UPGRADE/acceptance.yaml",
+      "codex_agents_workflow/.workflow/tasks/WORKFLOW-UPGRADE/open_questions.md"
+    ],
+    "coding": [
+      "codex_agents_workflow/.workflow/scripts/**",
+      "codex_agents_workflow/.workflow/templates/**",
+      "codex_agents_workflow/.workflow/tasks/WORKFLOW-UPGRADE/implementation_report.json"
+    ],
+    "testing": [
+      "codex_agents_workflow/.workflow/tests/**",
+      "codex_agents_workflow/.workflow/tasks/WORKFLOW-UPGRADE/test_report.json"
+    ],
+    "review": [],
+    "documentation": [
+      "README.md",
+      "codex_agents_workflow/README.md",
+      "codex_agents_workflow/.workflow/*.md",
+      "codex_agents_workflow/.workflow/gitlab-ci.example.yml",
+      "codex_agents_workflow/.workflow/tasks/WORKFLOW-UPGRADE/documentation_report.json"
+    ]
+  },
+  "kind": "maintenance",
+  "base_commit": "aecefd2",
+  "source_references": [
+    "https://learn.chatgpt.com/docs/agent-configuration/subagents",
+    "https://learn.chatgpt.com/docs/agent-configuration/agents-md"
+  ],
+  "rework_rounds": 1,
+  "status": "completed",
+  "validation": "final_validation.json"
+}

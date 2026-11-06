@@ -1,0 +1,10 @@
+# Codex project configuration (trusted repository only).
+# Use the currently selected parent model; avoid hard-coded model IDs.
+# Install/merge this file at the TARGET repository root, then start a new session.
+# The template's nested .codex directory does not configure the already-running parent session.
+# Keys checked against official Subagents docs and local codex-cli 0.166.0.
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 2
+default_subagent_reasoning_effort = "medium"
+interrupt_message = true

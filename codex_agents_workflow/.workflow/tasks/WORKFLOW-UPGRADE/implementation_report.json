@@ -1,0 +1,47 @@
+{
+  "task_id": "WORKFLOW-UPGRADE",
+  "status": "completed",
+  "kind": "internal_tooling_maintenance",
+  "changed_files": [
+    ".workflow/scripts/workflow.py",
+    ".workflow/scripts/workflow_core.py",
+    ".workflow/scripts/freeze_contract.py",
+    ".workflow/scripts/verify_contract.py",
+    ".workflow/scripts/check_scope.py",
+    ".workflow/templates/manifest.json",
+    ".workflow/templates/test_report.json"
+  ],
+  "requirements_implemented": [
+    "REQ-001",
+    "REQ-002",
+    "REQ-003",
+    "REQ-004",
+    "REQ-005",
+    "REQ-006",
+    "REQ-007",
+    "REQ-008"
+  ],
+  "verification": [
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s codex_agents_workflow/.workflow/tests -v",
+      "exit_code": 0,
+      "tests_run": 27,
+      "source": "Coding Agent post-fix execution"
+    }
+  ],
+  "repair_rounds": [
+    {
+      "round": 1,
+      "resolved": [
+        "Deletion snapshot consistency across git add/commit",
+        "Capture succeeds before saving new stage",
+        "Invalidate previous passed evidence before running checks"
+      ]
+    }
+  ],
+  "blockers": [],
+  "limitations": [
+    "This is the template implementation report, not a real application acceptance record.",
+    "Actual project commands, approvals, role coverage, and CI service access must be supplied in target repositories."
+  ]
+}

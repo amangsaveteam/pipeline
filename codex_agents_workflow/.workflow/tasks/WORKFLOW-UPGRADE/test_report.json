@@ -1,0 +1,40 @@
+{
+  "task_id": "WORKFLOW-UPGRADE",
+  "status": "passed",
+  "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s codex_agents_workflow/.workflow/tests -v",
+  "exit_code": 0,
+  "tests_run": 27,
+  "passed": 27,
+  "failed": 0,
+  "duration_seconds": 15.64,
+  "execution_environment": "Temporary independent Git repositories; Python 3.10 standard library; no project commits or publishing.",
+  "product_defects": [
+    {
+      "test": "test_committing_deleted_file_preserves_verified_content",
+      "issue": "Committing a validated deletion changes snapshot representation from MISSING to absent and incorrectly fails scope.",
+      "status": "resolved_and_regression_passed"
+    },
+    {
+      "test": "test_snapshot_failure_does_not_advance_stage",
+      "issue": "Failed snapshot capture leaves manifest advanced to CONTRACT_DRAFT instead of INTAKE.",
+      "status": "resolved_and_regression_passed"
+    },
+    {
+      "test": "test_interrupted_recheck_invalidates_previous_pass",
+      "issue": "Terminating a second real check leaves verification.json status passed from the first run.",
+      "status": "resolved_and_regression_passed"
+    }
+  ],
+  "synthetic_approval_notice": "All approval references used by the tests are synthetic fixtures, not real user approvals.",
+  "remaining": "No failing automated tests. This suite validates local workflow tooling; it does not certify any real application, hardware test, authenticated approval, remote CI run, push, merge, or deployment.",
+  "verified_at_utc": "2026-11-06T02:43:55.994996+00:00",
+  "verified_by": "independent Testing Agent rerun after Coding fixes",
+  "initial_run": {
+    "status": "product_defects_found",
+    "exit_code": 1,
+    "tests_run": 27,
+    "passed": 24,
+    "failed": 3,
+    "duration_seconds": 11.467
+  }
+}

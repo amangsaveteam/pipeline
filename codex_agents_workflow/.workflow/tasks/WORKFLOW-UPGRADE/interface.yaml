@@ -1,0 +1,40 @@
+version: "1.0"
+status: INTERNAL_TOOLING_DESIGN
+kind: LOCAL_CLI
+compatibility: "保留 freeze_contract.py / verify_contract.py / check_scope.py 入口；新命令仅本地内部工具，不更改机器人或应用公开 API。"
+runtime: "Python >= 3.10; standard library; Git on PATH"
+interfaces:
+  - id: CLI-001
+    command: "python3 .workflow/scripts/workflow.py init --task TASK-ID"
+    behavior: "在 .workflow/tasks 下创建任务；支持 --root 定位目标 Git 项目（具体参数由实现统一）。拒绝重复、非法 ID 和覆盖。"
+  - id: CLI-002
+    command: "python3 .workflow/scripts/workflow.py status --task TASK-ID"
+    behavior: "只读输出当前阶段、阻塞原因、下一步和缺失证据。"
+  - id: CLI-003
+    command: "python3 .workflow/scripts/workflow.py advance --task TASK-ID"
+    behavior: "只前进一个合法阶段；校验该阶段门禁；失败不改变阶段。可显式提供目标阶段用于防止操作错位。"
+  - id: CLI-004
+    command: "python3 .workflow/scripts/workflow.py check --task TASK-ID"
+    behavior: "只读验证当前门禁；支持最终门禁模式用于 CI。"
+  - id: CLI-005
+    command: "python3 .workflow/scripts/workflow.py run-checks --task TASK-ID"
+    behavior: "运行已配置 argv 检查、记录日志/退出码/内容指纹。"
+  - id: CLI-006
+    command: "python3 .workflow/scripts/workflow.py snapshot --task TASK-ID --role coding"
+    behavior: "记录阶段起点；拒绝覆盖尚未检查的同轮快照，避免抹去越权变化；也可由 advance 自动创建。"
+  - id: CLI-007
+    command: "python3 .workflow/scripts/workflow.py rework --task TASK-ID --role coding --reason TEXT"
+    behavior: "受控返工至 IMPLEMENTING 或 TESTING，增加返工计数并失效后继证据。"
+  - id: CLI-008
+    command: "python3 .workflow/scripts/workflow.py block|resume --task TASK-ID --reason TEXT"
+    behavior: "保留原阶段与原因；恢复原阶段而非任意跳转，保留历史和返工计数。"
+outputs:
+  success_exit_code: 0
+  failure_exit_code: "nonzero"
+  artifact_directory: ".workflow/tasks/TASK-ID/"
+  manifest_fields: [task_id, base_commit, stage, permissions, max_rework_rounds, checks]
+  check_definition: "{id: string, argv: [string], cwd: repository-relative path, timeout_seconds: positive integer}"
+  role_reports: [implementation_report.json, test_report.json, review_report.json, documentation_report.json]
+notes:
+  - "以上是精简设计接口；可合并 snapshot 与 advance，但应同步更新实际 CLI 使用文档与测试。"
+  - "approval 引用必须来源于实际用户或有权限的 owner，不把脚本参数当作认证。"

@@ -1,0 +1,13 @@
+{
+  "status": "not_run",
+  "contract_version": "0.1",
+  "checks": [
+    {
+      "acceptance_id": "AC-001",
+      "check_id": "replace_me",
+      "result": "NOT_RUN"
+    }
+  ],
+  "hardware_tests": "NOT_RUN_HARDWARE",
+  "known_limitations": []
+}

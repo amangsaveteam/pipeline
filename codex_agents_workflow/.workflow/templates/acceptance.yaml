@@ -1,0 +1,6 @@
+version: "0.1"
+acceptance:
+  - id: AC-001
+    requirement: REQ-001
+    condition: "待填写"
+    evidence: "unit/integration/hardware test (specify)"

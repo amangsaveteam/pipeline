@@ -1,0 +1,44 @@
+{
+  "task_id": "TASK-0001",
+  "base_commit": "REPLACE_WITH_BASE_COMMIT",
+  "max_rework_rounds": 2,
+  "allow_hardware": false,
+  "allow_deployment": false,
+  "permissions": {
+    "requirement": [
+      ".workflow/tasks/TASK-0001/requirements.md",
+      ".workflow/tasks/TASK-0001/interface.yaml",
+      ".workflow/tasks/TASK-0001/acceptance.yaml",
+      ".workflow/tasks/TASK-0001/open_questions.md"
+    ],
+    "coding": [
+      "src/**",
+      "include/**",
+      "CMakeLists.txt",
+      "package.xml",
+      ".workflow/tasks/TASK-0001/implementation_report.json"
+    ],
+    "testing": [
+      "test/**",
+      "tests/**",
+      ".workflow/tasks/TASK-0001/test_plan.md",
+      ".workflow/tasks/TASK-0001/test_report.json"
+    ],
+    "review": [],
+    "documentation": [
+      "README.md",
+      "docs/**",
+      "CHANGELOG.md",
+      ".workflow/tasks/TASK-0001/documentation_report.json"
+    ]
+  },
+  "stage": "INTAKE",
+  "required_acceptance_ids": [
+    "AC-001"
+  ],
+  "checks": [],
+  "rework_rounds": 0,
+  "history": [],
+  "scope_history": [],
+  "active_snapshot": null
+}

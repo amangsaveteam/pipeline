@@ -1,0 +1,30 @@
+{
+  "decision": "pending_tests",
+  "review_type": "static",
+  "findings": [
+    {
+      "severity": "medium",
+      "file": "codex_agents_workflow/.workflow/scripts/workflow_core.py",
+      "line": 177,
+      "issue": "删除的已跟踪文件记为 MISSING，暂存/提交删除后该路径消失，导致相同工作区内容产生不同指纹。",
+      "recommendation": "缺失文件从当前快照省略；前后快照仍可检测删除。"
+    },
+    {
+      "severity": "medium",
+      "file": "codex_agents_workflow/.workflow/scripts/workflow.py",
+      "line": 66,
+      "issue": "capture 在快照成功前保存新阶段；失败会留下已推进状态及缺失快照。",
+      "recommendation": "先成功生成快照再保存 manifest，失败保留原阶段。"
+    },
+    {
+      "severity": "medium",
+      "file": "codex_agents_workflow/.workflow/scripts/workflow.py",
+      "line": 246,
+      "issue": "新一轮检查开始时未失效旧 passed 证据；中断或日志写入失败可能保留旧成功。",
+      "recommendation": "执行前写 running/invalidated，仅完整成功后写 passed。"
+    }
+  ],
+  "uncertainties": [
+    "仅静态审查；尚未运行独立测试。"
+  ]
+}

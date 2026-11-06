@@ -1,0 +1,23 @@
+{
+  "status": "passed",
+  "verified_at_utc": "2026-11-06T03:00:53.899159+00:00",
+  "checks": [
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s codex_agents_workflow/.workflow/tests -v",
+      "exit_code": 0,
+      "tests_run": 27,
+      "passed": 27,
+      "duration_seconds": 12.762
+    },
+    {
+      "check": "Python syntax, JSON/TOML, Markdown local links and JSON examples, CI YAML and shell syntax",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "review": "Code and documentation independently approved",
+  "scope": "Local workflow template maintenance; no remote CI, push, merge, deployment or hardware execution."
+}

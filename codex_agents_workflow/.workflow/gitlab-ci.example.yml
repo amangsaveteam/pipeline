@@ -1,0 +1,27 @@
+# 在目标仓库初始化工作流任务之前，把此 job 合并到已有 .gitlab-ci.yml。
+# 不声明/替换 stages；默认 test 可独立运行。目标自定义 stages 若无 test，改为其已有验证阶段。
+# 必须在 CI 变量中显式设置 WORKFLOW_TASK_ID，例如 TASK-0001。
+# 根据项目替换镜像，并在任务开始前配置所需依赖；此 job 不启动 Codex。
+workflow_final_gate:
+  stage: test
+  image: python:3.12-bookworm
+  variables:
+    PYTHONDONTWRITEBYTECODE: "1"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  script:
+    - |
+      set -eu
+      : "${WORKFLOW_TASK_ID:?Set WORKFLOW_TASK_ID to the reviewed workflow task ID}"
+      command -v git
+      python3 --version
+      # 先验证指定任务存在、锁有效及阶段范围；run-checks 将旧成功证据失效。
+      python3 .workflow/scripts/workflow.py run-checks --task "$WORKFLOW_TASK_ID"
+      # 缺任务/锁/必需验收/审查/文档证据或错误阶段都必须失败。
+      python3 .workflow/scripts/workflow.py check --task "$WORKFLOW_TASK_ID" --final
+      git diff --check
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths:
+      - .workflow/tasks/$WORKFLOW_TASK_ID/
