@@ -1,3 +1,5 @@
+> 可选完整模式：仅在用户明确选择后使用。日常任务遵循根 AGENTS.md，不执行本文件的阶段、契约和报告要求。
+
 # 工作流运行说明
 
 以下命令均在安装完成的目标 Git 根运行。`workflow.py --task` 接受任务 ID；旧版 freeze/verify/check_scope 的 `--task` 接受任务目录路径，二者不要混用。所有新子命令均支持 `--root /absolute/target/repository`，默认当前目录且必须正好是 Git 根。

@@ -1,59 +1,21 @@
-# Codex native multi-agent workflow — repository policy
+# 研发协作规则
 
-## Scope and precedence
-- This file applies to this repository only. Do not import sibling projects' AGENTS.md or project-specific prompts.
-- Keep existing repository conventions and nested AGENTS.md when merging this template; do not overwrite them blindly.
-- For multi-stage development work in this template, delegate to the specialist agents below. The main Codex thread is the Orchestrator, not a sixth coding worker.
-- Applicable system/developer safety instructions and explicit user approvals take precedence over this repository workflow.
+本文件只作用于本模板。合并到业务项目时保留其稳定约束，用户明确要求优先。
 
-## Orchestrator: the only workflow coordinator
-- For non-trivial work, run `python3 .workflow/scripts/workflow.py init --task <TASK_ID>` at the target Git root before delegation. Configure the manifest's permissions, required acceptance IDs and real check commands before advancing.
-- Resume existing work with `workflow.py context --format json`; use its current revision with `--expect-revision` on subsequent mutations. Re-read after conflicts instead of retrying stale operations.
-- Own stage transitions, assign work, check files and outputs, route blockers, stop at applicable approval gates. Reuse explicit authorization already provided in the session; never manufacture an approval record or ask again for an approved action.
-- Do not write business code or tests on behalf of specialists. You may archive the reviewer's returned report verbatim without changing its conclusions.
-- Use the native custom subagent names: `requirement`, `coding`, `testing`, `review`, `documentation`.
-- Delegate narrow, evidence-seeking tasks. Supply task ID, approved contract version/hash, stage, allowed paths, exact outputs and stop conditions.
-- Do not spawn more than two simultaneous children. Do not allow children to spawn further agents; report requests to Orchestrator. In a shared worktree, run coding and testing writes sequentially; read-only planning/review can overlap independent work.
-- Agents share filesystem and root permissions. Treat prompts as behavioral policy, not filesystem security.
+## 日常研发方式
 
-## Canonical workflow
-1. `INTAKE` -> `CONTRACT_DRAFT`: requirement writes requirements.md, interface.yaml, acceptance.yaml, open_questions.md.
-2. `CONTRACT_REVIEW`: human or designated owner approves public contracts. Only then run freeze_contract.py and commit/record the locked contract.
-3. `IMPLEMENTING`: coding writes approved business files only; no changing tests or contracts.
-4. `TESTING`: testing independently validates feature functionality and applicable performance criteria, reusing existing tests before adding cases; fix test defects in testing, product defects in coding.
-5. `VERIFYING`: actual project-required build and tests, scope check, contract hash check must pass. Configure commands in the manifest and record them through `workflow.py run-checks`; missing prerequisites remain failures or blockers.
-6. `REVIEWING`: review is read-only, evidence-based, and returns findings. Maximum two automatic repair loops; then escalate to human.
-7. `DOCUMENTING`: documentation writes docs after review approval.
-8. `FINAL_GATE`: rerun required checks, review final doc-only diff if material; `advance` generates the summary and enters `READY_FOR_MR`. This is local readiness, not publication. Prepare the reviewable MR content; perform external actions only within actual user authorization.
+- 默认由主 agent 直接理解需求、修改实现与必要测试、同步受影响文档并运行相关检查；不要求主线程仅做调度。
+- 不默认启动子 agent，不初始化 workflow 任务，不生成契约、阶段快照或角色报告。日常修复、页面调整和跨文件小功能都适用。
+- 只有明确的风险或独立工作值得额外上下文成本时，才调用一个合适的 testing 或 review；其他角色同样按需独立调用，不串行走完五角色。委派只传目标、相关路径、验收与必要证据，不复制整段历史。
+- 范围补充、事实纠正和用户已确认的外部变更，在同一任务内更新简短说明；不为遗漏路径或接口描述笔误创建 V2/V3。实际公开行为或安全约束变化仍遵循项目原有授权边界。
+- 测试优先复用已有入口，只保留有业务回归价值的测试。临时诊断脚本、原始日志和运行记录放 /tmp 或 Git 私有目录，不提交到业务仓库。已确认需要保留的交付或现场证据按项目要求处理。
+- 长任务确需交接时，在 Git 私有目录保存一份简短说明：目标、已改内容、验证、未完成项；不默认生成多份报告或全仓文件快照。
+- 完成后简短说明变更、真实检查结果和未验证项。没有新改动或失败原因时不重复执行相同检查，不运行与本次变更无关的工具自测。
+- 若用户明确选择完整工作流，再单独配置其工具、记录位置和门禁；复杂任务本身不自动触发完整流程。该可选模式仍须遵守工具既有契约，不能手改状态伪造通过。
 
-## Hard stop conditions
-- Missing required public-contract approval, unauthorized paths, checksum drift, unclear published interface, or an unapproved expansion to dependencies, another repository, deployment, production access or hardware control. Stop on secret exposure or dangerous deletion.
-- No silent changes to approved requirements, acceptance criteria, QoS or public API. Escalate with change_request instead.
-- No `git reset --hard`, destructive cleanup, silent commit/push, or overwrite of other agents' changes.
-- No tools executing physical robot motion without separate explicit authorization and safety preflight.
-- Never report build/test success without command and exit-code evidence.
-- Do not use the playwright-cli skill.
+## 工具维护与边界
 
-## Efficient context
-- Read only changed/adjacent modules and contract artifacts; avoid full repository dump, unnecessary logs and repeated RAG reads.
-- Record concise results and references, not all terminal output. Do not assume earlier chat memory is repository truth.
-- For tiny typo-only tasks, the Orchestrator may classify the task as lightweight and complete a scoped edit with an appropriate check. Do not require five-agent overhead or a new public-contract approval for a change with no public-contract impact.
-- Maintenance of this workflow template itself is internal tooling work when requested by the user. Record the scope and validation, but do not create fictional public-interface approvals to bootstrap its own scripts.
-
-## Lean feature testing
-- Retain tests tied to a feature's functional acceptance or measurable performance requirements. Boundary/error/compatibility cases belong in that feature's functional tests only when relevant; do not generate a fixed checklist of suites for every task.
-- Reuse the project's test runner, fixtures and feature/module test files. A new task or AC does not require a new script. Prefer parameterized cases over copied scripts; split files only for a clear responsibility or maintainability reason.
-- Performance acceptance specifies metric, workload, environment, measurement method and threshold before implementation. Extend an existing benchmark where possible. If performance is not applicable, record the reason in requirements; do not invent a benchmark or claim performance passed.
-- Add regression assertions to existing feature tests when they prevent a concrete recurrence. Do not retain implementation-mirroring tests, duplicated acceptance checks, temporary debugging scripts or an extra test framework without a demonstrated need. Preserve necessary distinct assertions when consolidating tests.
-- No new tests for documentation, prompt or other low-impact changes without behavior impact. Use a relevant existing check. Do not set test-count or coverage-percentage quotas, or require one file per function/task.
-- Use the task's existing acceptance material and test_report.json for planning/results; no separate test_plan.md or per-case reports by default. Keep raw benchmark data and large logs outside source control, with retrievable evidence references; do not remove artifacts required by active gates or CI.
-- `.workflow/tests/` tests this workflow tool itself. Keep it in the template's maintenance repository; do not copy it into consuming projects by default or add it to every feature's checks.
-
-## Native-vs-enforced boundaries
-- Custom role instructions do NOT establish a separate read-only sandbox; subagents inherit root approval/sandbox settings.
-- Workflow mutations use cooperative per-worktree execution/state locks and persistent task ownership. A check child inherits the execution lock; confirm it stopped before `recover`. Never edit private lock/journal/owner records to bypass a conflict. Use separate worktrees for concurrent tasks; explicit `release` does not reset scope snapshots.
-- Use `workflow.py check` and `workflow.py advance` for stage gates; they validate stage snapshots, reports and frozen contracts. Do not edit stage/history/snapshots to bypass a failure. The original `check_scope.py` remains available for explicit Git ranges; it is not a replacement for dirty-worktree stage snapshots.
-- Run only reviewed, authorized commands from `manifest.checks`. The runner records argv, exit codes and logs; it is not a command sandbox and does not infer whether a command controls hardware or deploys.
-- Required acceptance IDs must all map to successful checks. Optional hardware tests remain explicitly unrun. A successful process does not prove assertions are adequate; the testing and review agents must assess coverage.
-- Follow `.workflow/ORCHESTRATION.md` for bounded rework, blocking/resumption and replacement tasks for public-contract changes. Do not overwrite a frozen lock.
-- For preventive permission isolation, use separately launched sessions/containers with per-role mounts outside this native shared-workspace workflow.
+- 五个 .codex/agents 角色是可选助手，主 agent 可以直接实现和测试；并行写入前明确文件归属，必要时用独立 worktree。
+- 真实硬件、部署、发布等动作仍按实际授权执行；不覆盖用户修改，不破坏性清理 Git，不伪造批准或成功证据。
+- 完整状态机是显式启用的可选工具，其操作见 .workflow/README.md。未启用时不读取该手册、初始化任务或套用它的阶段/报告要求。
+- .workflow/tests 验证工作流工具本身，仅改动相关运行行为时运行，不复制到业务项目、不加入每项业务检查。仅文档和提示词修改做对应静态核对，不新增测试。
