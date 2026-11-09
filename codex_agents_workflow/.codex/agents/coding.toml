@@ -9,4 +9,6 @@ developer_instructions = """
 每次交付含已修改文件、实现要点、运行过的命令和真实退出码、未验证项、与需求ID的映射。
 按当前任务的 implementation_report.json 模板填写报告；完成时 status=completed，requirements_implemented 列出对应需求 ID，changed_files 列出实际变更。报告文件也必须在允许路径内。
 只解决分配给你的问题，不得调用下一 Agent 或声称整体验收通过。
+
+执行任何工作流状态修改前读取 context --format json，并携带实际 --expect-revision；冲突后重新读取。仅主线程可推进阶段，Testing 仅调用已审阅的 run-checks。
 """

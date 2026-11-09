@@ -55,6 +55,41 @@ class Project:
     def cli(self, command, *args, ok=True):
         return self.run("workflow.py", command, "--task", TASK, "--root", str(self.root), *args, ok=ok)
 
+    def json_cli(self, command, *args, ok=True):
+        return json.loads(self.cli(command, *args, "--format", "json", ok=ok).stdout)
+
+    def python(self, code, wait=True):
+        env = {**self.env, "PYTHONPATH": str(self.root / ".workflow/scripts")}
+        args = [sys.executable, "-c", code]
+        if wait:
+            return subprocess.run(args, cwd=self.root, env=env, text=True,
+                                  capture_output=True, timeout=15)
+        return subprocess.Popen(args, cwd=self.root, env=env, text=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    def files(self):
+        return {str(p.relative_to(self.root)): p.read_bytes() for p in self.root.rglob("*")
+                if ".git" not in p.relative_to(self.root).parts and p.is_file()}
+
+    def crash_operation(self, command, predicate, **kwargs):
+        # Inject a real process death immediately after a controlled filesystem
+        # write. There is no production test flag or mocked gate result.
+        code = f"""
+import json, os
+import workflow_core as core
+import workflow_service as service
+original = core.write_bytes
+def crash(path, data):
+    original(path, data)
+    if {predicate}:
+        os._exit(77)
+core.write_bytes = crash
+service.write_bytes = crash
+result = service.execute({command!r}, root='.', task_id={TASK!r}, **{kwargs!r})
+print(json.dumps(result))
+"""
+        return self.python(code)
+
     def read(self, name):
         return json.loads((self.task / name).read_text())
 
@@ -369,7 +404,9 @@ class WorkflowTests(unittest.TestCase):
         self.assert_stage("TESTING")
         self.assertEqual(self.p.read("manifest.json")["rework_rounds"], 2)
         self.assertEqual(self.p.read("implementation_report.json")["status"], "completed")
-        self.p.cli("rework", "--role", "testing", "--reason", "Third attempt", ok=False)
+        rejected = self.p.json_cli("rework", "--role", "testing", "--reason", "Third attempt", ok=False)
+        self.assertEqual(rejected["code"], "REWORK_LIMIT")
+        self.assertTrue(rejected["state_changed"])
         self.assert_stage("BLOCKED")
         self.p.cli("resume", "--reason", "Owner will inspect")
         self.assert_stage("TESTING")
@@ -486,6 +523,316 @@ class WorkflowTests(unittest.TestCase):
         result = self.p.run("check_scope.py", "--task", str(self.p.task), "--role", "coding",
                             "--base", base, "--head", "HEAD", ok=False)
         self.assertIn("DENY private.txt", result.stdout)
+
+    def test_service_and_cli_return_structured_results_without_stdout_noise(self):
+        self.p.init()
+        code = f"""
+import contextlib, io, json
+from workflow_service import execute
+output = io.StringIO()
+with contextlib.redirect_stdout(output):
+    result = execute('status', root='.', task_id={TASK!r})
+assert output.getvalue() == '', output.getvalue()
+print(json.dumps(result))
+"""
+        result = self.p.python(code)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout), self.p.json_cli("status"))
+        failed = self.p.json_cli("check", "--final", ok=False)
+        self.assertFalse(failed["ok"])
+        self.assertEqual(failed["code"], "GATE_NOT_SATISFIED")
+        self.assertFalse(failed["state_changed"])
+        self.assertTrue(failed["gate"]["blockers"])
+
+    def test_concurrent_revision_updates_commit_once_and_preserve_history(self):
+        self.p.init()
+        revision = self.p.read("manifest.json")["revision"]
+        history_size = len(self.p.read("manifest.json")["history"])
+        code = """
+import json, time
+from pathlib import Path
+from workflow_service import execute
+Path('.git/ready-{index}').touch()
+while not Path('.git/race-go').exists():
+    time.sleep(0.005)
+print(json.dumps(execute('advance', root='.', task_id={task!r}, expected_revision={revision}, target='CONTRACT_DRAFT')))
+"""
+        processes = [self.p.python(code.format(index=i, task=TASK, revision=revision), wait=False) for i in range(2)]
+        try:
+            deadline = time.monotonic() + 5
+            while not all((self.p.root / f".git/ready-{i}").exists() for i in range(2)) and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertTrue(all((self.p.root / f".git/ready-{i}").exists() for i in range(2)))
+            (self.p.root / ".git/race-go").touch()
+            results = [json.loads(process.communicate(timeout=5)[0]) for process in processes]
+        finally:
+            for process in processes:
+                if process.poll() is None:
+                    process.kill()
+                process.communicate(timeout=3)
+        self.assertEqual(sum(result["ok"] for result in results), 1, results)
+        loser = next(result for result in results if not result["ok"])
+        self.assertIn(loser["code"], ("BUSY", "REVISION_CONFLICT"))
+        self.assertFalse(loser["state_changed"])
+        manifest = self.p.read("manifest.json")
+        self.assertEqual(manifest["revision"], revision + 1)
+        self.assertEqual(len(manifest["history"]), history_size + 1)
+        before = self.p.files()
+        stale = self.p.json_cli("advance", "--expect-revision", str(revision), ok=False)
+        self.assertEqual(stale["code"], "REVISION_CONFLICT")
+        self.assertEqual(before, self.p.files())
+
+    def test_legacy_manifest_revision_zero_upgrades_without_scope_drift(self):
+        self.p.init()
+        manifest = self.p.read("manifest.json")
+        manifest.pop("revision")
+        self.p.write("manifest.json", manifest)
+        before = self.p.files()
+        self.assertEqual(self.p.json_cli("context")["revision"], 0)
+        self.assertEqual(before, self.p.files())
+        self.p.cli("advance", "--expect-revision", "0")
+        self.assertEqual(self.p.read("manifest.json")["revision"], 1)
+        # Normal runtime revision changes do not masquerade as policy edits.
+        self.p.cli("block", "--reason", "Synthetic pause")
+        self.p.cli("resume", "--reason", "Synthetic resume")
+        self.assert_stage("CONTRACT_DRAFT")
+
+    def test_context_is_readonly_and_reports_stale_or_damaged_evidence(self):
+        self.p.testing()
+        self.p.complete_testing()
+        before = self.p.files()
+        context = self.p.json_cli("context")["context"]
+        self.assertTrue(context["verification"]["valid"])
+        self.assertEqual(context["missing_acceptance_ids"], [])
+        self.assertEqual(context["responsible_role"], "testing")
+        self.assertEqual(before, self.p.files())
+        (self.p.root / "tests/test_business.py").write_text("# Changed assertion input\n")
+        context = self.p.json_cli("context")["context"]
+        self.assertFalse(context["verification"]["valid"])
+        self.assertIn("AC-001", context["missing_acceptance_ids"])
+        self.assertIn("stale", context["verification"]["error"])
+        (self.p.task / "verification.json").write_text("{broken")
+        (self.p.task / "implementation_report.json").unlink()
+        before = self.p.files()
+        context = self.p.json_cli("context")["context"]
+        self.assertFalse(context["verification"]["available"])
+        self.assertFalse(context["reports"]["implementation_report.json"]["available"])
+        self.assertTrue(context["next_actions"])
+        self.assertEqual(before, self.p.files())
+
+    def test_context_and_gate_reject_mixed_acceptance_results_consistently(self):
+        self.p.testing()
+        self.p.complete_testing()
+        report = self.p.read("test_report.json")
+        report["checks"].append({"acceptance_id": "AC-001", "result": "FAIL", "check_id": "unit"})
+        self.p.write("test_report.json", report)
+        context = self.p.json_cli("context")["context"]
+        self.assertTrue(context["verification"]["valid"])
+        self.assertIn("AC-001", context["missing_acceptance_ids"])
+        self.assertFalse(context["gate"]["passed"])
+        self.p.cli("advance", ok=False)
+
+    def test_blocked_review_context_preserves_review_report_exclusion(self):
+        self.p.reviewing()
+        self.p.write("review_report.json", {"decision": "blocked", "findings": []})
+        self.p.cli("block", "--reason", "Reviewer requires more evidence")
+        context = self.p.json_cli("context")["context"]
+        self.assertTrue(context["changes"]["available"])
+        self.assertEqual(context["changes"]["value"], [])
+        self.assertIn("Reviewer", context["blocked_reason"])
+
+    def test_workspace_ownership_requires_explicit_release(self):
+        self.p.init()
+        result = self.p.run("workflow.py", "init", "--task", "SECOND", "--root", str(self.p.root), "--format", "json", ok=False)
+        self.assertEqual(json.loads(result.stdout)["code"], "WORKSPACE_BUSY")
+        self.assertFalse((self.p.root / ".workflow/tasks/SECOND").exists())
+        revision = self.p.read("manifest.json")["revision"]
+        self.p.cli("release", "--reason", "Synthetic handoff", "--expect-revision", str(revision))
+        self.p.run("workflow.py", "init", "--task", "SECOND", "--root", str(self.p.root))
+        blocked = self.p.json_cli("advance", ok=False)
+        self.assertEqual(blocked["code"], "WORKSPACE_BUSY")
+        self.assert_stage("INTAKE")
+
+    def test_live_and_orphan_check_processes_hold_lock_until_recovery_is_safe(self):
+        code = ("from pathlib import Path; import os,time; "
+                "slow=not Path('.git/quick-check').exists(); "
+                "Path('.git/live-child').write_text(str(os.getpid())); "
+                "time.sleep(20) if slow else print('recovered check')")
+        self.p.testing([self.p.check_definition(code, timeout=25)])
+        command = [sys.executable, str(self.p.root / ".workflow/scripts/workflow.py"), "run-checks", "--task", TASK,
+                   "--root", str(self.p.root), "--format", "json"]
+        process = subprocess.Popen(command, cwd=self.p.root, env=self.p.env, text=True,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        child_marker = self.p.root / ".git/live-child"
+        child = None
+        try:
+            deadline = time.monotonic() + 5
+            while not child_marker.exists() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertTrue(child_marker.exists(), "check subprocess did not start")
+            child = int(child_marker.read_text())
+            before = self.p.files()
+            context = self.p.json_cli("context")["context"]
+            self.assertEqual(context["verification"]["status"], "running")
+            self.assertTrue(context["verification"]["run_id"])
+            for command, args in (("advance", []), ("run-checks", []), ("rework", ["--role", "testing", "--reason", "Conflict"])):
+                self.assertEqual(self.p.json_cli(command, *args, ok=False)["code"], "BUSY")
+            self.assertEqual(before, self.p.files())
+            process.kill()
+            process.communicate(timeout=3)
+            self.assertEqual(self.p.json_cli("recover", "--reason", "Parent stopped", ok=False)["code"], "BUSY")
+            os.killpg(child, signal.SIGKILL)
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                context = self.p.json_cli("context")["context"]
+                if context["verification"]["status"] == "interrupted":
+                    break
+                time.sleep(0.01)
+            self.assertEqual(context["verification"]["status"], "interrupted")
+            recovered = self.p.json_cli("recover", "--reason", "Confirmed check process group stopped")
+            self.assertEqual(recovered["code"], "RECOVERED")
+            self.assertEqual(self.p.read("verification.json")["status"], "invalidated")
+            self.p.cli("advance", ok=False)
+            (self.p.root / ".git/quick-check").touch()
+            self.p.cli("run-checks")
+            self.assertEqual(self.p.read("verification.json")["status"], "passed")
+        finally:
+            if process.poll() is None:
+                process.kill()
+            process.communicate(timeout=3)
+            if child is not None:
+                try:
+                    os.killpg(child, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+
+    def test_partial_init_can_recover_and_retry_without_fabricating_manifest(self):
+        crashed = self.p.crash_operation("init", "path.name == 'requirements.md'")
+        self.assertEqual(crashed.returncode, 77, crashed.stdout + crashed.stderr)
+        self.assertFalse((self.p.task / "manifest.json").exists())
+        rejected = self.p.json_cli("init", ok=False)
+        self.assertEqual(rejected["code"], "OPERATION_INCOMPLETE")
+        self.p.cli("recover", "--reason", "Synthetic interrupted initialization")
+        self.assertFalse(self.p.task.exists())
+        self.p.init()
+        self.assert_stage("INTAKE")
+
+    def test_recovery_rolls_back_published_transition_with_monotonic_revision(self):
+        self.p.init()
+        revision = self.p.read("manifest.json")["revision"]
+        crashed = self.p.crash_operation("advance", f"path.name == 'manifest.json' and json.loads(data)['revision'] > {revision}", target="CONTRACT_DRAFT")
+        self.assertEqual(crashed.returncode, 77, crashed.stdout + crashed.stderr)
+        published_revision = self.p.read("manifest.json")["revision"]
+        self.assert_stage("CONTRACT_DRAFT")
+        context = self.p.json_cli("context")["context"]
+        self.assertTrue(context["pending_operation"])
+        self.assertFalse(context["gate"]["passed"])
+        self.assertEqual(self.p.json_cli("advance", ok=False)["code"], "OPERATION_INCOMPLETE")
+        self.p.cli("recover", "--reason", "Synthetic crash after state publication", "--expect-revision", str(published_revision))
+        self.assert_stage("INTAKE")
+        self.assertGreater(self.p.read("manifest.json")["revision"], published_revision)
+        self.assertIsNone(self.p.json_cli("context")["context"]["pending_operation"])
+        self.p.cli("advance")
+
+    def test_recovery_preserves_subsequent_edits_and_restores_partial_rework(self):
+        self.p.reviewing()
+        original_report = self.p.read("implementation_report.json")
+        crashed = self.p.crash_operation("rework", "path.name == 'implementation_report.json'", role="coding", reason="Synthetic product defect")
+        self.assertEqual(crashed.returncode, 77, crashed.stdout + crashed.stderr)
+        partial_report = (self.p.task / "implementation_report.json").read_bytes()
+        self.p.write("implementation_report.json", {"status": "in_progress", "user_note": "Preserve this later edit"})
+        before = self.p.files()
+        rejected = self.p.json_cli("recover", "--reason", "Attempt recovery", ok=False)
+        self.assertEqual(rejected["code"], "RECOVERY_CONFLICT")
+        self.assertEqual(before, self.p.files())
+        (self.p.task / "implementation_report.json").write_bytes(partial_report)
+        self.p.cli("recover", "--reason", "Later edit preserved separately; restore interrupted records")
+        self.assertEqual(self.p.read("implementation_report.json"), original_report)
+        self.assertEqual(self.p.read("verification.json")["status"], "invalidated")
+        self.assert_stage("REVIEWING")
+        self.p.cli("advance", ok=False)
+
+    def test_recovery_crashes_keep_restored_pass_blocked_until_invalidation_commits(self):
+        self.p.testing()
+        self.p.complete_testing()
+        self.p.cli("check")
+        before_revision = self.p.read("manifest.json")["revision"]
+        crashed = self.p.crash_operation("run-checks", f"path.name == 'manifest.json' and json.loads(data)['revision'] > {before_revision}")
+        self.assertEqual(crashed.returncode, 77, crashed.stdout + crashed.stderr)
+        published_revision = self.p.read("manifest.json")["revision"]
+        # Kill recovery in the precise gap between restoring old successful
+        # evidence and invalidating it. The durable marker must still close gates.
+        code = f"""
+import os
+from workflow_service import execute
+from workflow_store import Store
+original = Store.rollback
+def interrupted(self):
+    result = original(self)
+    os._exit(78)
+Store.rollback = interrupted
+execute('recover', root='.', task_id={TASK!r}, reason='Synthetic interrupted recovery')
+"""
+        result = self.p.python(code)
+        self.assertEqual(result.returncode, 78, result.stdout + result.stderr)
+        self.assertEqual(self.p.read("verification.json")["status"], "passed")
+        restored_revision = self.p.read("manifest.json")["revision"]
+        self.assertGreater(restored_revision, published_revision)
+        failed = self.p.json_cli("check", ok=False)
+        self.assertEqual(failed["gate"]["blockers"][0]["code"], "OPERATION_INCOMPLETE")
+        self.assertEqual(self.p.json_cli("advance", ok=False)["code"], "OPERATION_INCOMPLETE")
+        context = self.p.json_cli("context")["context"]
+        self.assertTrue(context["pending_operation"])
+        self.assertFalse(context["gate"]["passed"])
+        # Retry, then crash after invalidation itself has been written. Both the
+        # recovery writes and the original rollback remain recoverable.
+        crashed = self.p.crash_operation("recover", "path.name == 'verification.json' and json.loads(data).get('status') == 'invalidated'", reason="Synthetic invalidation interruption")
+        self.assertEqual(crashed.returncode, 77, crashed.stdout + crashed.stderr)
+        self.assertEqual(self.p.read("verification.json")["status"], "invalidated")
+        intermediate_revision = self.p.read("manifest.json")["revision"]
+        self.assertGreater(intermediate_revision, restored_revision)
+        self.p.cli("check", ok=False)
+        self.assertTrue(self.p.json_cli("context")["context"]["pending_operation"])
+        self.p.cli("recover", "--reason", "Finish interrupted recovery", "--expect-revision", str(intermediate_revision))
+        self.assertGreater(self.p.read("manifest.json")["revision"], intermediate_revision)
+        self.assertEqual(self.p.read("verification.json")["status"], "invalidated")
+        self.assertIsNone(self.p.json_cli("context")["context"]["pending_operation"])
+        self.p.cli("check", ok=False)
+        self.p.cli("run-checks")
+        self.p.cli("check")
+
+    def test_partial_init_temp_residue_is_reported_without_false_recovery_success(self):
+        code = f"""
+import os
+from workflow_service import execute
+original = os.fsync
+def interrupted(fd):
+    original(fd)
+    path = os.readlink('/proc/self/fd/' + str(fd))
+    if '/.workflow/tasks/{TASK}/' in path:
+        os._exit(79)
+os.fsync = interrupted
+execute('init', root='.', task_id={TASK!r})
+"""
+        result = self.p.python(code)
+        self.assertEqual(result.returncode, 79, result.stdout + result.stderr)
+        self.assertFalse((self.p.task / "manifest.json").exists())
+        residue = {path.name: path.read_bytes() for path in self.p.task.iterdir()}
+        self.assertTrue(residue)
+        rejected = self.p.json_cli("recover", "--reason", "Inspect fsync interruption", ok=False)
+        self.assertEqual(rejected["code"], "RECOVERY_CONFLICT")
+        self.assertEqual(rejected["remaining_paths"], sorted(residue))
+        self.assertEqual(residue, {path.name: path.read_bytes() for path in self.p.task.iterdir()})
+        self.assertEqual(self.p.json_cli("init", ok=False)["code"], "OPERATION_INCOMPLETE")
+        # Explicitly remove only the known synthetic temporary residue; recovery
+        # itself must not delete unknown files or claim init is possible early.
+        for name in residue:
+            self.assertTrue(name.startswith(".requirements.md.") and name.endswith(".tmp"))
+            (self.p.task / name).unlink()
+        self.p.cli("recover", "--reason", "Confirmed and removed synthetic temp residue")
+        self.assertFalse(self.p.task.exists())
+        self.p.init()
+        self.assert_stage("INTAKE")
 
 
 if __name__ == "__main__":

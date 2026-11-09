@@ -1,0 +1,64 @@
+{
+  "task_id": "HARNESS-V2",
+  "base_commit": "900a7401d1d250c435440085cd1048c2dbf658ac",
+  "max_rework_rounds": 2,
+  "allow_hardware": false,
+  "allow_deployment": false,
+  "permissions": {
+    "requirement": [
+      ".workflow/tasks/HARNESS-V2/requirements.md",
+      ".workflow/tasks/HARNESS-V2/interface.yaml",
+      ".workflow/tasks/HARNESS-V2/acceptance.yaml",
+      ".workflow/tasks/HARNESS-V2/open_questions.md"
+    ],
+    "coding": [
+      "codex_agents_workflow/.workflow/scripts/*.py",
+      "codex_agents_workflow/.workflow/templates/manifest.json"
+    ],
+    "testing": [
+      "codex_agents_workflow/.workflow/tests/test_workflow.py"
+    ],
+    "review": [],
+    "documentation": [
+      "codex_agents_workflow/AGENTS.md",
+      "codex_agents_workflow/README.md",
+      "codex_agents_workflow/.workflow/*.md",
+      "codex_agents_workflow/.workflow/gitlab-ci.example.yml"
+    ]
+  },
+  "stage": "INTAKE",
+  "required_acceptance_ids": [
+    "AC-API",
+    "AC-CONCURRENCY",
+    "AC-CONTEXT",
+    "AC-MIGRATION"
+  ],
+  "checks": [
+    {
+      "id": "workflow-tests",
+      "argv": [
+        "python3",
+        "-B",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "codex_agents_workflow/.workflow/tests",
+        "-v"
+      ],
+      "cwd": ".",
+      "timeout_seconds": 180
+    }
+  ],
+  "rework_rounds": 0,
+  "history": [
+    {
+      "at": "2026-11-09T08:19:38.105409+00:00",
+      "action": "init",
+      "stage": "INTAKE"
+    }
+  ],
+  "scope_history": [],
+  "active_snapshot": null,
+  "maintenance_scope": "User-authorized internal workflow tooling and ZJ-OS migration; no invented public-contract approval. Implementation, validation and migration evidence recorded separately from business-task stage gates."
+}

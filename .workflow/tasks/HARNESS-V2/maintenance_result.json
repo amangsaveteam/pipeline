@@ -1,0 +1,105 @@
+{
+  "kind": "internal_tooling_maintenance",
+  "status": "completed",
+  "date": "2026-11-09",
+  "authorization": "User explicitly requested implementing unified interface, concurrency protection, recovery context, then migration to ZJ-OS.",
+  "business_contract_approval": "not_applicable; no approval record fabricated",
+  "canonical_business_stage_progression": "not used for maintenance of the workflow itself; initialization record retained unchanged",
+  "features": [
+    "structured workflow_service.execute and JSON CLI",
+    "cooperative per-worktree execution/state locks and optimistic revision checks",
+    "recoverable multi-file writes and persistent workspace ownership",
+    "read-only context derived from repository evidence"
+  ],
+  "tests": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s codex_agents_workflow/.workflow/tests -v",
+    "passed": 40,
+    "exit_code": 0,
+    "elapsed_seconds": 33.203,
+    "reported_by": "testing"
+  },
+  "review": {
+    "decision": "approved",
+    "rounds": 2,
+    "reports": [
+      "review_round_1.md",
+      "review_round_2.md"
+    ]
+  },
+  "migration": {
+    "target": "/home/huyingkai/ZJ-OS",
+    "files_written": [
+      ".agents/skills/vue-best-practices/SKILL.md",
+      ".codex/agents/coding.toml",
+      ".codex/agents/documentation.toml",
+      ".codex/agents/requirement.toml",
+      ".codex/agents/review.toml",
+      ".codex/agents/testing.toml",
+      ".codex/config.toml",
+      ".workflow/README.md",
+      ".workflow/scripts/check_scope.py",
+      ".workflow/scripts/freeze_contract.py",
+      ".workflow/scripts/verify_contract.py",
+      ".workflow/scripts/workflow.py",
+      ".workflow/scripts/workflow_context.py",
+      ".workflow/scripts/workflow_core.py",
+      ".workflow/scripts/workflow_service.py",
+      ".workflow/scripts/workflow_store.py",
+      ".workflow/source.json",
+      ".workflow/templates/acceptance.yaml",
+      ".workflow/templates/documentation_report.json",
+      ".workflow/templates/implementation_report.json",
+      ".workflow/templates/interface.yaml",
+      ".workflow/templates/manifest.json",
+      ".workflow/templates/open_questions.md",
+      ".workflow/templates/requirements.md",
+      ".workflow/templates/review_report.json",
+      ".workflow/templates/test_report.json",
+      "AGENTS.md",
+      "AGENTS_INDEX.md",
+      "README.md",
+      "docs/README.md"
+    ],
+    "removed": [
+      ".agents/permissions-agent.md"
+    ],
+    "protected_dirty_files_unchanged": 7,
+    "installed_hashes_verified": true,
+    "pencil_preserved": true,
+    "backup": "/tmp/zj-os-agent-migration-backup-w2kift_r",
+    "smoke": {
+      "ok": true,
+      "stage": "READY_FOR_MR",
+      "revision": 15,
+      "check_exit_codes": [
+        0
+      ],
+      "context_readonly": true,
+      "workspace_released": true,
+      "scope": "staged ZJ-OS scripts/templates after recovery fixes in disposable Git repository; synthetic approvals only",
+      "script_sha256": {
+        "check_scope.py": "9b02337a3626859d5a20dfb87aaa44d715f851543ac20c4f810a03503e82bf2b",
+        "freeze_contract.py": "72f7bc059f49a8e39a4bf9dfd9a424426aa2c367d63a8e1239b15f34aa177b40",
+        "verify_contract.py": "7f58ea316339c7870f9cc38e851e43be34b6b0b07a57effffd47eb740f7a844b",
+        "workflow.py": "11e7c10ad3af4555d54744ba37c6f813afceef5d95d6570caff683a290eb589c",
+        "workflow_context.py": "ebefc0a462013d051eb64ed33d127c889ff0bbba83019731a091b53c46619d97",
+        "workflow_core.py": "556bc5919274baab3412e6f0938607fa0812d3733a136368ba8b9131b9928472",
+        "workflow_service.py": "b850890e72be1e86d3a0f2f46fa300d04f7308eb628db839fc7d02b9b9c41259",
+        "workflow_store.py": "8db048e13dec53b098dea0f5d6a0813f0d8266eb208118020b10f26f43b0caee"
+      }
+    }
+  },
+  "validation": [
+    "source and target git diff --check",
+    "TOML/JSON parsing",
+    "CLI help",
+    "skill-creator quick_validate passed",
+    "new/changed local documentation links passed"
+  ],
+  "preexisting_issue_not_changed": "docs/README.md in ZJ-OS links to absent auto_test/packages/wa-t-debug/README.md; pre-existing link retained outside migration scope",
+  "limits": [
+    "No product runtime code, deployment, hardware execution, commit or push performed.",
+    "New agent configuration must be loaded in a new ZJ-OS Codex session.",
+    "Locks are cooperative; no filesystem sandbox or database ACID guarantee."
+  ]
+}

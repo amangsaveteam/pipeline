@@ -5,13 +5,20 @@ import json
 import os
 import re
 import stat
+import tempfile
+from contextvars import ContextVar
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
 
 class WorkflowError(Exception):
-    pass
+    def __init__(self, message, code="VALIDATION_ERROR"):
+        super().__init__(message)
+        self.code = code
+
+
+WRITE_OBSERVER = ContextVar("workflow_write_observer", default=None)
 
 
 CONTRACT_FILES = ('requirements.md', 'interface.yaml', 'acceptance.yaml')
@@ -23,7 +30,7 @@ STAGE_ROLE = {'CONTRACT_DRAFT': 'requirement', 'IMPLEMENTING': 'coding',
 REPORTS = ('implementation_report.json', 'test_report.json', 'review_report.json',
            'documentation_report.json')
 STATE_KEYS = {'stage', 'history', 'rework_rounds', 'active_snapshot', 'scope_history',
-              'blocked_from', 'blocked_reason', 'final_gate_entered_at'}
+              'blocked_from', 'blocked_reason', 'final_gate_entered_at', 'revision'}
 
 
 def now():
@@ -43,12 +50,29 @@ def read_json(path):
         raise WorkflowError(f'invalid JSON in {path}: {exc}') from exc
 
 
-def write_json(path, data):
+def write_bytes(path, data):
+    """Atomic same-directory replacement; an optional journal observes before mutation."""
     require(not path.is_symlink(), f'refuse symlink output: {path}')
-    temporary = path.with_name(path.name + '.tmp')
-    require(not temporary.is_symlink(), f'refuse symlink output: {temporary}')
-    temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    temporary.replace(path)
+    observer = WRITE_OBSERVER.get()
+    if observer is not None:
+        observer(path, data)
+    if data is None:
+        path.unlink(missing_ok=True)
+        return
+    fd, filename = tempfile.mkstemp(prefix='.' + path.name + '.', suffix='.tmp', dir=path.parent)
+    temporary = Path(filename)
+    try:
+        with os.fdopen(fd, 'wb') as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def write_json(path, data):
+    write_bytes(path, (json.dumps(data, ensure_ascii=False, indent=2) + '\n').encode())
 
 
 def digest(data):
@@ -94,6 +118,7 @@ def load_manifest(task):
         require(isinstance(patterns, list) and all(isinstance(p, str) and p and not p.startswith('/')
                 and '..' not in p.split('/') for p in patterns), f'invalid permissions.{role}')
     require(m['permissions']['review'] == [], 'review permissions must be empty')
+    require(type(m.get('revision', 0)) is int and m.get('revision', 0) >= 0, 'invalid revision')
     return m
 
 
@@ -136,10 +161,8 @@ def freeze_contract(task, approved_by):
     require(not lock.exists() and not lock.is_symlink(), 'contract lock already exists; use a new version/task and approval')
     result = {'approved_by': approved_by.strip(), 'approved_at_utc': now(),
               'sha256': contract_hashes(task, placeholders=True)}
-    # Exclusive create also protects against an accidental second freeze.
-    with lock.open('x', encoding='utf-8') as stream:
-        json.dump(result, stream, ensure_ascii=False, indent=2)
-        stream.write('\n')
+    # The service serializes this check and write under the worktree lock.
+    write_json(lock, result)
     return result
 
 
@@ -148,6 +171,9 @@ def generated_path(relative, task_rel):
     if not relative.startswith(prefix):
         return False
     tail = relative[len(prefix):]
+    temporary_names = ('manifest.json', 'verification.json', 'summary.md', 'contract.lock.json', *REPORTS, *CONTRACT_FILES, 'open_questions.md')
+    if any(tail.startswith('.' + name + '.') and tail.endswith('.tmp') for name in temporary_names):
+        return True
     return tail.startswith(('logs/', 'snapshots/')) or tail in {
         'verification.json', 'summary.md', 'manifest.json.tmp'}
 

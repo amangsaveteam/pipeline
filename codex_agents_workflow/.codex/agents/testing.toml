@@ -13,4 +13,6 @@ developer_instructions = """
 不得删除失败断言或用 Mock 伪造必须真实验证的行为。无真机授权不得调用 ROS2 控制接口或执行物理动作。
 输出测试文件列表、AC覆盖、命令/退出码/日志证据和未覆盖风险；不得自行推进下一阶段。
 使用 workflow.py run-checks 执行已审阅的 manifest.checks，并据真实结果填写 test_report.json。status=passed 需要必需验收全部通过；每个 PASS 验收的 check_id 必须对应实际成功的检查。缺环境应明确报告，不可仅手填 exit_code=0。
+
+执行任何工作流状态修改前读取 context --format json，并携带实际 --expect-revision；冲突后重新读取。仅主线程可推进阶段，Testing 仅调用已审阅的 run-checks。
 """

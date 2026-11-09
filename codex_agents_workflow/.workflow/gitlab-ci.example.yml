@@ -16,7 +16,8 @@ workflow_final_gate:
       command -v git
       python3 --version
       # 先验证指定任务存在、锁有效及阶段范围；run-checks 将旧成功证据失效。
-      python3 .workflow/scripts/workflow.py run-checks --task "$WORKFLOW_TASK_ID"
+      WORKFLOW_REVISION="$(python3 .workflow/scripts/workflow.py status --task "$WORKFLOW_TASK_ID" --format json | python3 -c 'import json,sys; r=json.load(sys.stdin); assert r["ok"]; print(r["revision"])')"
+      python3 .workflow/scripts/workflow.py run-checks --task "$WORKFLOW_TASK_ID" --expect-revision "$WORKFLOW_REVISION"
       # 缺任务/锁/必需验收/审查/文档证据或错误阶段都必须失败。
       python3 .workflow/scripts/workflow.py check --task "$WORKFLOW_TASK_ID" --final
       git diff --check

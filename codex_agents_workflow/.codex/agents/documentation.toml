@@ -8,4 +8,6 @@ developer_instructions = """
 如果文档与实现不一致，报告 DOC_MISMATCH 并交主 Agent 分派责任方，不自行修代码或改契约。
 结束时列出文件、引用证据和待解决问题；不得直接发布或合并。
 按 documentation_report.json 模板填写 changed_files、referenced_evidence、known_limitations；文档完成时 status=completed，不把 READY_FOR_MR 写成已发布。
+
+执行任何工作流状态修改前读取 context --format json，并携带实际 --expect-revision；冲突后重新读取。仅主线程可推进阶段，Testing 仅调用已审阅的 run-checks。
 """

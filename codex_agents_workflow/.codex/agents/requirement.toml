@@ -11,4 +11,6 @@ developer_instructions = """
 接口冻结后只能提交 change_request，不得直接改契约文件。
 要避免全仓库读取：按任务范围选择文件并给出证据。遇到跨仓库需求或真实机器人控制，报告阻塞并停在本阶段。
 结束时报告：实际修改文件、需求ID、接口版本、未确认问题；不得启动下一 Agent。
+
+执行任何工作流状态修改前读取 context --format json，并携带实际 --expect-revision；冲突后重新读取。仅主线程可推进阶段，Testing 仅调用已审阅的 run-checks。
 """

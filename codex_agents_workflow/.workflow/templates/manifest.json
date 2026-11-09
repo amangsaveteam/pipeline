@@ -39,5 +39,6 @@
   "rework_rounds": 0,
   "history": [],
   "scope_history": [],
-  "active_snapshot": null
+  "active_snapshot": null,
+  "revision": 0
 }

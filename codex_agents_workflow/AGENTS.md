@@ -8,6 +8,7 @@
 
 ## Orchestrator: the only workflow coordinator
 - For non-trivial work, run `python3 .workflow/scripts/workflow.py init --task <TASK_ID>` at the target Git root before delegation. Configure the manifest's permissions, required acceptance IDs and real check commands before advancing.
+- Resume existing work with `workflow.py context --format json`; use its current revision with `--expect-revision` on subsequent mutations. Re-read after conflicts instead of retrying stale operations.
 - Own stage transitions, assign work, check files and outputs, route blockers, stop at applicable approval gates. Reuse explicit authorization already provided in the session; never manufacture an approval record or ask again for an approved action.
 - Do not write business code or tests on behalf of specialists. You may archive the reviewer's returned report verbatim without changing its conclusions.
 - Use the native custom subagent names: `requirement`, `coding`, `testing`, `review`, `documentation`.
@@ -50,6 +51,7 @@
 
 ## Native-vs-enforced boundaries
 - Custom role instructions do NOT establish a separate read-only sandbox; subagents inherit root approval/sandbox settings.
+- Workflow mutations use cooperative per-worktree execution/state locks and persistent task ownership. A check child inherits the execution lock; confirm it stopped before `recover`. Never edit private lock/journal/owner records to bypass a conflict. Use separate worktrees for concurrent tasks; explicit `release` does not reset scope snapshots.
 - Use `workflow.py check` and `workflow.py advance` for stage gates; they validate stage snapshots, reports and frozen contracts. Do not edit stage/history/snapshots to bypass a failure. The original `check_scope.py` remains available for explicit Git ranges; it is not a replacement for dirty-worktree stage snapshots.
 - Run only reviewed, authorized commands from `manifest.checks`. The runner records argv, exit codes and logs; it is not a command sandbox and does not infer whether a command controls hardware or deploys.
 - Required acceptance IDs must all map to successful checks. Optional hardware tests remain explicitly unrun. A successful process does not prove assertions are adequate; the testing and review agents must assess coverage.

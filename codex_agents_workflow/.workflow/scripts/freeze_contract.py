@@ -1,24 +1,33 @@
 #!/usr/bin/env python3
-"""Freeze approved contract bytes. An approval reference is a record, not authentication."""
+"""Compatibility CLI for freezing approved contract bytes through guarded service."""
 import argparse
+import json
 import sys
 sys.dont_write_bytecode = True
-from workflow_core import WorkflowError, freeze_contract, legacy_task
+from workflow_core import WorkflowError, legacy_task, git, require
+from workflow_service import execute
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--task', required=True, help='task directory, e.g. .workflow/tasks/TASK-0001')
-    parser.add_argument('--approved-by', required=True, help='actual human/owner approval reference')
+    parser.add_argument('--task', required=True, help='task directory')
+    parser.add_argument('--approved-by', required=True)
+    parser.add_argument('--expect-revision', type=int)
+    parser.add_argument('--format', choices=('text', 'json'), default='text')
     args = parser.parse_args()
     try:
         task = legacy_task(args.task)
-        freeze_contract(task, args.approved_by)
-        print(f'Contract locked: {task / "contract.lock.json"}')
-        print('Approval reference recorded; identity is not authenticated by this script.')
-    except (WorkflowError, OSError, UnicodeError, ValueError) as exc:
-        parser.exit(1, f'ERROR: {exc}\n')
+        root = git(task, 'rev-parse', '--show-toplevel').decode().strip()
+        from pathlib import Path
+        require(task == Path(root) / '.workflow' / 'tasks' / task.name, 'freeze task must be a canonical .workflow/tasks/<ID> directory')
+        result = execute('freeze', root=root, task_id=task.name,
+                         expected_revision=args.expect_revision, approved_by=args.approved_by)
+    except (WorkflowError, OSError, ValueError) as exc:
+        result = {'ok': False, 'code': getattr(exc, 'code', 'IO_OR_DATA_ERROR'), 'message': str(exc)}
+    print(json.dumps(result, ensure_ascii=False, indent=2) if args.format == 'json' else result['message'],
+          file=sys.stdout if args.format == 'json' or result['ok'] else sys.stderr)
+    return 0 if result['ok'] else 1
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

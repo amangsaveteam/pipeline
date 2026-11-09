@@ -8,4 +8,6 @@ developer_instructions = """
 每条发现必须包含 severity（blocker/high/medium/low）、file:line、复现条件或明确推理依据、关联需求ID、建议修复方向；不要提出无关风格优化。
 输出 decision=approved/changes_requested/blocked 与 findings 列表，不得修改代码或测试，不得自己标记 CI 通过或合并 MR。
 对于缺少证据的结论用 uncertainty 标注，不推测为事实。
+
+执行任何工作流状态修改前读取 context --format json，并携带实际 --expect-revision；冲突后重新读取。仅主线程可推进阶段，Testing 仅调用已审阅的 run-checks。
 """

@@ -1,6 +1,6 @@
 # Codex 多 Agent 研发流程
 
-主 Codex 会话负责任务调度，五个专职 Agent 负责交付，Python 脚本负责检查阶段条件、记录真实执行证据。最终生成可供评审的 MR 摘要。
+主 Codex 会话负责任务调度，五个专职 Agent 负责交付，Python 服务层负责检查阶段条件、记录真实执行证据，CLI 提供文本/JSON 调用，文件锁与版本校验协调并发，`context` 为新会话生成恢复信息。最终生成可供评审的 MR 摘要。
 
 ```mermaid
 flowchart LR
@@ -68,7 +68,7 @@ flowchart LR
 
 ```bash
 python3 .workflow/scripts/workflow.py init --task TASK-0001
-python3 .workflow/scripts/workflow.py status --task TASK-0001
+python3 .workflow/scripts/workflow.py context --task TASK-0001 --format json
 ```
 
 先填写 manifest 的精确允许路径、必需验收 ID 和真实检查命令，再把 [启动提示词](.workflow/PROMPTS.md) 交给 Codex 主线程。已有明确授权直接沿用；只有尚未获得批准的公开契约或超出授权范围的动作需要确认。
@@ -88,6 +88,6 @@ python3 .workflow/scripts/workflow.py status --task TASK-0001
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s codex_agents_workflow/.workflow/tests -v
 ```
 
-这些是流程工具自身的功能测试：27 项用例集中在一个约 22 KiB 的文件中，并非 27 个脚本；仅维护流程工具时运行，目标项目默认不用携带，也不加入每项业务功能的检查列表。测试使用临时独立 Git 仓库，不提交当前项目；此前独立复跑 27 项全部通过、退出码 0，记录见 [维护测试报告](.workflow/tasks/WORKFLOW-UPGRADE/test_report.json)。这验证的是本地流程工具，未验证真实业务、硬件或远端 GitLab CI。
+这些是流程工具自身的功能测试，集中维护在现有测试文件中，覆盖阶段门禁、执行证据、结构化接口、并发与恢复。测试使用临时独立 Git 仓库，不提交当前项目；目标项目默认不用携带，也不加入每项业务功能的检查列表。以当前实际测试输出与维护记录为准，不把历史用例数量或结果当成本次通过证据。测试不验证真实业务、硬件或远端 GitLab CI。
 
 脚本是协作检查工具，不是 Agent 后台服务、Webhook 监听器、权限沙箱或审批身份认证系统。完整边界见 [运行说明](.workflow/README.md#检测边界)。

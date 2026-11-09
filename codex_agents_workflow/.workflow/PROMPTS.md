@@ -9,9 +9,9 @@
 任务：<具体需求、预期行为和约束>
 任务 ID：TASK-0001。
 
-先检查仓库状态与已有授权。用 workflow.py init 创建任务，在 INTAKE 配置精确的角色允许路径、required_acceptance_ids 和项目真实构建/测试命令；不要提交我的全部现有改动。进入 CONTRACT_DRAFT 后只分派 requirement，交付需求、接口、验收标准和未决事项。
+先检查仓库状态与已有授权和工作区占用。用 workflow.py init 创建任务，在 INTAKE 配置精确的角色允许路径、required_acceptance_ids 和项目真实构建/测试命令；不要提交我的全部现有改动。进入 CONTRACT_DRAFT 后只分派 requirement，交付需求、接口、验收标准和未决事项。
 
-向我展示需要批准的具体公开契约；同一版本已有批准直接沿用，否则说明需要批准的依据。冻结后依次分派 coding、testing、review、documentation，每个阶段使用 CLI 门禁，不手改状态。共享工作区中代码和测试写入串行，最多同时两个子 Agent，禁止子 Agent 再委派。
+向我展示需要批准的具体公开契约；同一版本已有批准直接沿用，否则说明需要批准的依据。冻结后依次分派 coding、testing、review、documentation，每个阶段使用 CLI 门禁，不手改状态。每次修改前读取 context --format json，携带真实 revision 调用 --expect-revision；遇版本冲突重新读取，不盲目重试。共享工作区中代码和测试写入串行，最多同时两个子 Agent，禁止子 Agent 再委派。
 
 测试只长期保留面向开发功能的功能验收和性能测试，先复用现有入口/用例，再补明确缺口；不按任务新建脚本或测试框架。需求中明确适用的性能指标、负载、环境、测量方法和阈值，不适用时说明原因。不要机械铺满测试类别；无行为变更不新增测试，不另建test_plan或逐用例报告，精简不能删必要断言或掩盖失败。
 
@@ -29,8 +29,8 @@
 ## 从已有任务继续
 
 ```text
-继续 TASK-0001。先执行 workflow.py status，读取 manifest、最新角色报告和 verification.json。
-不要重新 init，不要覆盖锁、快照或历史。确认是否有遗留检查进程以及未归属的文件变化，再根据当前阶段继续。status 的 NOT READY 不是成功门禁，用 check 的真实退出码判断。
+继续 TASK-0001。先执行 workflow.py context --task TASK-0001 --format json，按其引用读取必要契约、报告和日志。
+不要重新 init，不要覆盖锁、快照或历史。确认是否有活动/遗留检查进程、未完成操作以及未归属的文件变化，再根据当前阶段继续。查询成功不是门禁通过，用 check 的真实退出码判断。存在中断操作时先核对原因和进程，使用 recover --reason；不重放外部命令、不覆盖后续编辑。存在其他任务占用时用独立 worktree，或由负责人按 release 条件交接，不手删锁或 owner。每次修改携带当前 --expect-revision，冲突后重新获取 context。
 已有批准继续有效；源文件或检查配置变动后的旧成功证据不能复用。BLOCKED 时先说明原因是否已经解决，仅恢复原阶段，不跳阶段或重置返工计数。
 ```
 
